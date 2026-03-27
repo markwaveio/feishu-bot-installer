@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feishu Bot Installer"
+  short_description: "Create a Feishu bot by QR code and bind it to an OpenClaw agent."
+  default_prompt: "Use the Feishu bot installer workflow to create or bind a Feishu bot, show the QR code to the user, then bind that bot to either a new dedicated agent or an existing agent."
