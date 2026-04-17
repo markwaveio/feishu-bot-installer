@@ -1,6 +1,6 @@
 ---
 name: feishu-bot-installer
-description: Create or bind a Feishu/Lark OpenClaw bot from the command line using the official openclaw-lark installer, then bind that bot to either a new dedicated agent or an existing agent. Use when the user wants to create a Feishu bot, show a QR code for authorization, decide whether the bot should use isolated memory, or wire the bot into a specific OpenClaw agent.
+description: Create or bind a Feishu/Lark OpenClaw bot from the command line using the official login flow, then bind that bot to either a new dedicated agent or an existing agent. Use when the user wants to create a Feishu bot, show a QR code for authorization, keep the existing bot untouched while creating a new one, decide whether the bot should use isolated memory, or wire the bot into a specific OpenClaw agent.
 metadata:
   short-description: Create and bind Feishu bots for OpenClaw
 ---
@@ -12,7 +12,7 @@ Use this skill for the official Feishu plugin onboarding flow plus multi-bot, mu
 ## What this skill covers
 
 - Checks whether `openclaw-lark` is already installed
-- Starts the official `@larksuite/openclaw-lark` installer in a TTY
+- Starts the official Feishu login flow in a TTY
 - Shows the QR code in terminal output so the user can scan it
 - Configures additional Feishu bot accounts under `channels.feishu.accounts`
 - Sets the recommended multi-bot session isolation mode
@@ -20,6 +20,23 @@ Use this skill for the official Feishu plugin onboarding flow plus multi-bot, mu
 - Binds the bot to either:
   - a new dedicated agent, or
   - an existing agent
+
+## Hermes-safe default
+
+When the user says:
+
+- do not touch the current Feishu bot
+- create a fresh Hermes bot
+- keep the old bot online
+
+the default path should be:
+
+1. archive the current top-level default bot into `channels.feishu.accounts.<accountId>`
+2. launch a fresh QR-based Feishu login
+3. choose **create a new bot**, not reuse
+4. set the bot display name to `Hermes-feishu-bot-installer`
+5. bind the new default bot to the desired Hermes/OpenClaw agent
+6. verify the final mapping
 
 ## Official scheme vs this skill
 
@@ -60,22 +77,26 @@ Default recommendation:
    - Run [create_additional_feishu_bot.sh](./scripts/create_additional_feishu_bot.sh).
    - It archives the current default bot, launches the official QR flow, binds the new default bot to the target agent, and prints the final mapping.
 
-3. Start bot creation manually when you need lower-level control.
+3. For the Hermes-specific fresh-bot path, use the dedicated helper.
+   - Run [create_hermes_feishu_bot_installer.sh](./scripts/create_hermes_feishu_bot_installer.sh).
+   - It preserves the current default bot, tells the operator exactly what bot name to enter, and binds the new bot to the requested agent.
+
+4. Start bot creation manually when you need lower-level control.
    - If a default Feishu bot is already in use and you are about to create a second bot, first archive the current default bot into `channels.feishu.accounts` with [configure_feishu_account.sh](./scripts/configure_feishu_account.sh) `--account-id <id> --from-default`.
    - Then run [create_feishu_bot.sh](./scripts/create_feishu_bot.sh).
    - If the official installer asks whether to reuse an existing bot, answer `n` to create a new one unless the user explicitly wants reuse.
 
-4. Ask the user to scan the QR code.
+5. Ask the user to scan the QR code.
    - The installer prints the QR code directly in the terminal.
 
-5. Bind the bot to an agent after creation.
+6. Bind the bot to an agent after creation.
    - If this is an additional bot, first register it in `channels.feishu.accounts` with [configure_feishu_account.sh](./scripts/configure_feishu_account.sh).
    - New dedicated agent:
      - [bind_feishu_agent.sh](./scripts/bind_feishu_agent.sh) `--new-agent openmoss`
    - Existing agent:
      - [bind_feishu_agent.sh](./scripts/bind_feishu_agent.sh) `--agent main`
 
-6. Verify the mapping before you start chatting.
+7. Verify the mapping before you start chatting.
    - Run [verify_feishu_mapping.sh](./scripts/verify_feishu_mapping.sh).
    - Check that the output matches your intended mapping:
      - which bot is top-level `default`
@@ -113,6 +134,15 @@ $CODEX_HOME/skills/feishu-bot-installer/scripts/create_additional_feishu_bot.sh 
   --archive-default-name "Openmoss协作团队"
 ```
 
+Hermes-specific fresh bot flow:
+
+```bash
+$CODEX_HOME/skills/feishu-bot-installer/scripts/create_hermes_feishu_bot_installer.sh \
+  --archive-default-as legacy-feishu \
+  --archive-default-agent main \
+  --new-default-agent hermes-feishu-bot-installer
+```
+
 Bind the default Feishu bot to a new agent:
 
 ```bash
@@ -146,9 +176,11 @@ $CODEX_HOME/skills/feishu-bot-installer/scripts/verify_feishu_mapping.sh
 ## Notes
 
 - The official CLI currently provides `install`, `info`, `doctor`, `update`, and `self-update`, but not a standalone `create-bot-only` command.
+- Prefer `openclaw channels login --channel feishu` when available; fall back to `npx -y @larksuite/openclaw-lark install` when the built-in login path is unavailable.
 - If `openclaw-lark` is already installed, this skill skips the assumption that setup is missing, but still uses the official install/configure flow to create or bind the bot.
 - The official installer writes the newly created bot into the top-level default Feishu config. When creating a second bot, archive the old default first if you want to keep both bots.
 - The safest path for third and later bots is `create_additional_feishu_bot.sh`, because it bundles archive, create, bind, and verify into one flow.
+- The Hermes helper is intentionally conservative: it does not modify the old default bot in place; it archives first, then creates the new bot.
 - For true multi-bot isolation, prefer `session.dmScope = "per-account-channel-peer"`.
 - For additional bots, store their credentials under `channels.feishu.accounts.<accountId>` and route by that `accountId`.
 - After any create/rebind step, verify the final mapping. The most common mistake is mixing up `App ID`, `accountId`, and `agentId`.

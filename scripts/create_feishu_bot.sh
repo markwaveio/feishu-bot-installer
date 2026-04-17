@@ -18,7 +18,7 @@ fi
 
 TARGET="${1-}"
 CHECK_CMD='if [ -d "$HOME/.openclaw/extensions/openclaw-lark" ]; then echo INSTALLED; else echo NOT_INSTALLED; fi'
-INSTALL_CMD='npx -y @larksuite/openclaw-lark install'
+LOGIN_CMD='if command -v openclaw >/dev/null 2>&1; then openclaw channels login --channel feishu; else npx -y @larksuite/openclaw-lark install; fi'
 
 run_remote() {
   local host="$1"
@@ -34,7 +34,7 @@ if [[ -n "$TARGET" ]]; then
   else
     echo "[feishu-bot-installer] openclaw-lark plugin is not installed on $TARGET. Starting official install flow."
   fi
-  exec ssh -tt "$TARGET" "zsh -lc '$INSTALL_CMD'"
+  exec ssh -tt "$TARGET" "zsh -lc '$LOGIN_CMD'"
 else
   STATUS="$(zsh -lc "$CHECK_CMD")"
   if [[ "$STATUS" == "INSTALLED" ]]; then
@@ -44,5 +44,5 @@ else
   else
     echo "[feishu-bot-installer] openclaw-lark plugin is not installed locally. Starting official install flow."
   fi
-  exec zsh -lc "$INSTALL_CMD"
+  exec zsh -lc "$LOGIN_CMD"
 fi
